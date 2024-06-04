@@ -8,14 +8,25 @@ import requests
 import screeninfo
 from dotenv import load_dotenv
 from openai import OpenAI
+from openai import AzureOpenAI
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from webcrawler.CrawlerTools import (get_images, make_google_search,
                                      scrape_page_text)
+from app import get_chrome_options
+from webdriver_manager.chrome import ChromeDriverManager
+from app import create_browser
 load_dotenv(".env.local")
 load_dotenv()
-open_ai_key = os.getenv('GPT_API_KEY')
-client = OpenAI(api_key=open_ai_key)
+
+# open_ai_key = os.getenv('GPT_API_KEY')
+# client = OpenAI(api_key=open_ai_key)
+client = AzureOpenAI(
+            api_key=os.getenv("AZURE_OPENAI_API_KEY"),  
+            api_version="2024-02-01",
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+        )
 
 # Use AI to click and navigate within that website, AI -> use for smart navigation
 
@@ -44,7 +55,7 @@ class ResearchHall:
         user_prompt = user_prompt
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-35-turbo",
             seed=42,
             temperature=0.3,
             messages=[
@@ -89,7 +100,7 @@ class ResearchHall:
         """returns number of food, bar, and retail stalls of food hall"""
         location_instruction = "You are a market researcher and you are helping me find information about certain food halls."
         prompt = f'Given this text content, determine the number of food stalls, bar stalls, and retail stalls in "{self.food_hall}"' + \
-            '. return the response as raw json: {"food": 3, "bars": 4, "retail": 3} or {"data": null} if information is not available.'
+            '. return the response as raw and VALID json, it is crucial i get this data in the right format: {"food": 3, "bars": 4, "retail": 3} or {"food": null, "bars": null, "retail": null} if information is not available, of course if you can find number of stalls for some, you dont put them all as null.'
 
         google_link = make_google_search(
             f'{self.food_hall} number of food stalls', browser, 1)[0]
@@ -303,68 +314,53 @@ class ResearchHall:
     def browser_research(self, browser, tasks):
         """Executes a list of research tasks using the given browser instance."""
         for task in tasks:
-
             # Assuming each task function takes a 'food_hall' string and a 'browser' object
             # You might need to adjust this call depending on how your task functions are structured
-            task_response, google_link = task(browser)
-            string = task_response.replace("```json", "").replace("```", "")
+            try:
+                task_response, google_link = task(browser)
+                string = task_response.replace("```json", "").replace("```", "")
+                
+                # Debug print to check the content of the string
+                print(f"Raw JSON string: {string}")
 
-            if '{"data": null}' not in string:
-                data = json.loads(string)
+                if '{"data": null}' not in string:
+                    try:
+                        data = json.loads(string)
+                    except json.JSONDecodeError as e:
+                        print(f"JSON decode error: {e.msg} at line {e.lineno} column {e.colno}")
+                        continue
 
-                if "data" in data and data["data"] == None:
-                    continue
-                source = None        
-                if google_link:
-                    label_formatted = task.__name__.replace(
-                        "get_", "").replace("_", " ").title()
-                    self.sources.append(
-                        {"source": google_link, "label": label_formatted})
-                    source = {"source": google_link, "label": label_formatted}
-                print(data, source)
+                    if "data" in data and data["data"] is None:
+                        continue
 
-                self.updateDB(data, source)
-            else:
-                print(f"Data not found for {task.__name__}")
+                    source = None
+                    if google_link:
+                        label_formatted = task.__name__.replace("get_", "").replace("_", " ").title()
+                        self.sources.append({"source": google_link, "label": label_formatted})
+                        source = {"source": google_link, "label": label_formatted}
 
-            self.updateDB({"sources": self.sources}, {})
+                    print(f"Parsed data: {data}, Source: {source}")
+                    self.updateDB(data, source)
+                else:
+                    print(f"Data not found for {task.__name__}")
+
+                self.updateDB({"sources": self.sources}, {})
+            
+            except Exception as e:
+                print(f"Unexpected error in task {task.__name__}: {str(e)}")
 
     def run_in_parallel(self):
-        options = Options()
-        options.add_argument("--headless=new")
-        options.page_load_strategy = 'eager'
+        options = get_chrome_options()
 
         # Initialize browser instances
-        browser1 = webdriver.Chrome(options=options)
-        browser2 = webdriver.Chrome(options=options)
-        browser3 = webdriver.Chrome(options=options)
-        browser4 = webdriver.Chrome(options=options)
-
-        # Set window sizes for a 1920x1080 resolution, adjust these values based on your actual screen resolution
-        screen = screeninfo.get_monitors()[0]
-        width = screen.width // 2
-        height = screen.height // 2
-
-        # Position the windows in a 4-quadrant layout
-        # Top-Left
-        browser1.set_window_position(0, 0)
-        browser1.set_window_size(width, height)
-
-        # Top-Right
-        browser2.set_window_position(width, 0)
-        browser2.set_window_size(width, height)
-
-        # Bottom-Left
-        browser3.set_window_position(0, height)
-        browser3.set_window_size(width, height)
-
-        # Bottom-Right
-        browser4.set_window_position(width, height)
-        browser4.set_window_size(width, height)
+        browser1 = create_browser()
+        browser2 = create_browser()
+        browser3 = create_browser()
+        browser4 = create_browser()
 
         # Define the tasks for each browser (quartering the total tasks)
         all_tasks = [
-            #self.get_photos,
+            # self.get_photos,
             self.get_location,
             self.get_square_footage,
             self.get_number_of_food_stalls,
@@ -381,7 +377,6 @@ class ResearchHall:
             self.get_renovation_history,
             self.get_owner,
             self.get_management_company,
-
         ]
 
         tasks1 = all_tasks[:4]
@@ -390,14 +385,10 @@ class ResearchHall:
         tasks4 = all_tasks[12:]
 
         # Create and start threads for each set of tasks
-        thread1 = threading.Thread(
-            target=self.browser_research, args=(browser1, tasks1))
-        thread2 = threading.Thread(
-            target=self.browser_research, args=(browser2, tasks2))
-        thread3 = threading.Thread(
-            target=self.browser_research, args=(browser3, tasks3))
-        thread4 = threading.Thread(
-            target=self.browser_research, args=(browser4, tasks4))
+        thread1 = threading.Thread(target=self.browser_research, args=(browser1, tasks1))
+        thread2 = threading.Thread(target=self.browser_research, args=(browser2, tasks2))
+        thread3 = threading.Thread(target=self.browser_research, args=(browser3, tasks3))
+        thread4 = threading.Thread(target=self.browser_research, args=(browser4, tasks4))
 
         thread1.start()
         thread2.start()
@@ -415,6 +406,7 @@ class ResearchHall:
         browser2.quit()
         browser3.quit()
         browser4.quit()
+
     def __str__(self):
         """
         Returns a string representation of all attributes and their values

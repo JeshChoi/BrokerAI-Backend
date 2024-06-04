@@ -5,7 +5,7 @@ from selenium import webdriver
 if __name__ == '__main__':
     browser = webdriver.Chrome()
 
-    text = scrape_page_text('https://github.com/Jomango2003', browser)
+    text = scrape_page_text('https://github.com/JeshChoi', browser)
     print(text)
 
     new_links = get_google_alert_links('new food hall', browser)

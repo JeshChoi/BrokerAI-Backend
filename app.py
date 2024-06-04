@@ -3,16 +3,18 @@ from flask_cors import CORS, cross_origin
 from webcrawler import ResearchHall
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
 from webcrawler import CrawlerTools
 import threading
 
 from flask import current_app
 
+from openai import AzureOpenAI
 
 import os
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 import time
 import json
@@ -29,9 +31,6 @@ from download_foodhalls_as_csv import get_csv
 load_dotenv(".env.local")
 load_dotenv()
 
-open_ai_key = os.getenv('GPT_API_KEY')
-gpt_client = OpenAI(api_key=open_ai_key)
-
 mongo_uri = os.getenv("MONGO_CONNECTION")
 mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
 mongodb = mongo_client.brokerai
@@ -45,6 +44,29 @@ except Exception as e:
 
 app = Flask(__name__)
 
+def get_chrome_options():
+    options = Options()
+    options.add_argument("--headless")  # Runs Chrome in headless mode.
+    options.add_argument("--no-sandbox")  # Bypass OS security model
+    options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+    options.page_load_strategy = 'normal'
+    return options
+
+def create_webdriver_instance():
+    options = get_chrome_options()
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+    return driver
+
+def create_browser():
+    options = get_chrome_options()
+    return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+
+@app.get("/")
+@cross_origin()
+def pog():
+    # Check database for valid research 
+    return jsonify({"status": "pog"})
+
 @app.get("/download_csv")
 @cross_origin()
 def download_csv():
@@ -57,6 +79,32 @@ def download_csv():
         mimetype="text/csv",
         headers={"Content-disposition":
                  "attachment; filename=foodhalls.csv"})
+
+@app.get('/test_gpt')
+@cross_origin()
+def test_gpt(): 
+        gpt_client = AzureOpenAI(
+            api_key=os.getenv("AZURE_OPENAI_API_KEY"),  
+            api_version="2024-02-01",
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+        )
+
+        GPT_INSTRUCTIONS = "You are a super star story teller"
+        user_prompt = "tell me a short fun story about Paul the hamster"
+
+        response = gpt_client.chat.completions.create(
+            model="gpt-35-turbo",
+            seed=42,
+            temperature=0.3,
+            messages=[
+                {"role": "system", "content": GPT_INSTRUCTIONS},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+        
+        payload = response.choices[0].message.content
+        return jsonify({"story": payload})
+
 
 @app.get("/api/foodhalls/count")
 @cross_origin()
@@ -115,12 +163,10 @@ def start_new_crawl(search_key, source = None):
 
 def get_relevant_halls(): # fix this 
     """returns list of relevant halls"""
-    options = Options()
-    options.add_argument("--headless=new")
-    options.page_load_strategy = 'eager'
+    options = get_chrome_options()
 
     # Initialize browser instances
-    browser = webdriver.Chrome(options=options)
+    browser = create_browser()
     new_food_hall_article_links = CrawlerTools.scrape_google_alert(browser=browser)
     browser.quit()
 
@@ -139,10 +185,10 @@ def get_new_halls_today():
     new_hall_list = get_relevant_halls()['relevant_halls']  
     
     # number of food halls researched in an iteration 
-    batch_size = 3
+    batch_size = 1
 
     # reserach iteration 
-    wait_time = 60 * 6
+    wait_time = 60 * 10
 
     with app.app_context():
         count = 0
@@ -166,4 +212,4 @@ def finish_page():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0")

@@ -3,6 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 
 from selenium.webdriver.chrome.options import Options
@@ -13,11 +14,14 @@ import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from openai import AzureOpenAI
 load_dotenv()
 
 import time
 import json
 
+from app import get_chrome_options
+from app import create_browser
 
 def valid_url(url: str) -> bool:
     """returns whether this url is valid for search"""
@@ -197,37 +201,36 @@ def scrape_google_alert(browser, search_key="new food hall") -> list:
 def determine_food_halls_in_parallel(links):
         '''Returns objects of new halls to research '''
         res = []
-        options = Options()
-        options.add_argument("--headless=new")
-        options.page_load_strategy = 'eager'
+        options = get_chrome_options()
+
 
         # Initialize browser instances
-        browser1 = webdriver.Chrome(options=options)
-        browser2 = webdriver.Chrome(options=options)
-        browser3 = webdriver.Chrome(options=options)
-        browser4 = webdriver.Chrome(options=options)
+        browser1 = create_browser()
+        browser2 = create_browser()
+        browser3 = create_browser()
+        browser4 = create_browser()
 
-        # Set window sizes for a 1920x1080 resolution, adjust these values based on your actual screen resolution
-        screen = screeninfo.get_monitors()[0]
-        width = screen.width // 2
-        height = screen.height // 2
+        # # Set window sizes for a 1920x1080 resolution, adjust these values based on your actual screen resolution
+        # screen = screeninfo.get_monitors()[0]
+        # width = screen.width // 2
+        # height = screen.height // 2
 
-        # Position the windows in a 4-quadrant layout
-        # Top-Left
-        browser1.set_window_position(0, 0)
-        browser1.set_window_size(width, height)
+        # # Position the windows in a 4-quadrant layout
+        # # Top-Left
+        # browser1.set_window_position(0, 0)
+        # browser1.set_window_size(width, height)
 
-        # Top-Right
-        browser2.set_window_position(width, 0)
-        browser2.set_window_size(width, height)
+        # # Top-Right
+        # browser2.set_window_position(width, 0)
+        # browser2.set_window_size(width, height)
 
-        # Bottom-Left
-        browser3.set_window_position(0, height)
-        browser3.set_window_size(width, height)
+        # # Bottom-Left
+        # browser3.set_window_position(0, height)
+        # browser3.set_window_size(width, height)
 
-        # Bottom-Right
-        browser4.set_window_position(width, height)
-        browser4.set_window_size(width, height)
+        # # Bottom-Right
+        # browser4.set_window_position(width, height)
+        # browser4.set_window_size(width, height)
 
         # Define the tasks for each browser (quartering the total tasks)
         first_q = len(links) // 4
@@ -273,7 +276,7 @@ def determine_new_food_hall(browser, new_food_hall_article_links, res_list):
     for link in new_food_hall_article_links:
         try:
             webcontent = scrape_page_text(link, browser)
-            location_instruction = 'The aim of your market research is to find out the name of new food halls after reading an article. The article may or may not have relevant information to a new food hall, so analyze the text to see if a new food hall is opened.'
+            location_instruction = 'The aim of your market research is to find out the name of new food halls after reading an article. The article may or may not have relevant information to a new food hall, so analyze the text to see if a new food hall is opened. Make sure that the article is writing about a NEW FOOD HALL. avoid single restaraunts opening, we want new food halls.'
             prompt = f'Find out the name of the new food hall reading this article.' + \
                 ' return the response as raw json: \'{"food_hall_name": "food_hall_name"}\' or \'{"no_new_food_hall": null}\' if there are no new food hall.'
             res = gpt_request(location_instruction, prompt + webcontent)
@@ -293,14 +296,19 @@ def determine_new_food_hall(browser, new_food_hall_article_links, res_list):
             print('uh oh')
 
 def gpt_request(gpt_instruction: str, user_prompt: str):
-        open_ai_key = os.getenv('GPT_API_KEY')
-        gpt_client = OpenAI(api_key=open_ai_key)
+        # open_ai_key = os.getenv('GPT_API_KEY')
+        # gpt_client = OpenAI(api_key=open_ai_key)
+        gpt_client = AzureOpenAI(
+            api_key=os.getenv("AZURE_OPENAI_API_KEY"),  
+            api_version="2024-02-01",
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+        )
 
         GPT_INSTRUCTIONS = gpt_instruction
         user_prompt = user_prompt
 
         response = gpt_client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-35-turbo",
             seed=42,
             temperature=0.3,
             messages=[

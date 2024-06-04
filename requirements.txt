@@ -7,4 +7,5 @@ pymongo==4.6.3
 python-dotenv==1.0.1
 Requests==2.31.0
 screeninfo==0.8.1
-selenium==4.20.0
+selenium>=4.0.0
+webdriver-manager>=3.0.0
