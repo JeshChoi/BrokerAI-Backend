@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 load_dotenv(".env.local")
 load_dotenv()
 
-class ResearchVenue:
+class ResearchVenue:  
     def __init__(self, venue_name: str, mongo_collection, source=None):
         # MongoDB Schema
         self.venue: str = venue_name
@@ -170,7 +170,7 @@ class ResearchVenue:
         
         if conversation:
             # Process and retrieve data from the traversed pages
-            prompt = f'Find the {search_item} of the music or theatre venue `{self.venue}`.'
+            prompt = f'Find the {search_item} of the music or theatre venue `{self.venue}`. If there is no mention of a second floor, story, or a mezzanine (2 floors), then set number of stories to 1.'
             format_request = 'Return the response as json: {"number_of_stories": int}. If unable to find accurate data, set the json value to None'
             response, conversation = aggregate_gpt_request(prompt + format_request, conversation)
             
@@ -206,7 +206,7 @@ class ResearchVenue:
 
         if conversation:
             # Process and retrieve data from the traversed pages
-            prompt = f'Find the {search_item} of the music or theatre venue `{self.venue}`.'
+            prompt = f'Find the {search_item} of the music or theatre venue `{self.venue}`. If there is a mention of a venue having drinks provided, then say there is 1 bar. Otherwise, if there is no mention of drinks served or bars, then there is 0 bars.'
             format_request = 'Return the response as json: {"number_of_bars": int}. If unable to find accurate data, set the json value to None'
             response, conversation = aggregate_gpt_request(prompt + format_request, conversation)
             
@@ -240,7 +240,7 @@ class ResearchVenue:
 
         if conversation:
             # Process and retrieve data from the traversed pages
-            prompt = f'Find out if food is offered at the music or theatre venue `{self.venue}`.'
+            prompt = f'Find out if food is offered at the music or theatre venue `{self.venue}`. If there is a mention of food served, available, or a menu is available, then this value should be true that there is food provided. Otherwise, if there is no mention of food, then this is false'
             format_request = 'Return the response as json: {"food_offered": bool}. If unable to find accurate data, set the json value to None'
             response, conversation = aggregate_gpt_request(prompt + format_request, conversation)
             
@@ -451,7 +451,7 @@ class ResearchVenue:
         attributes_str = ', '.join(f"{key}={value!r}" for key, value in attributes.items())
         return f"{self.__class__.__name__}({attributes_str})"
 
-from webcrawler.venues import venues # dataset with all the data
+from webcrawler.venues import validation_venues # dataset with all the data
 
 if __name__ == '__main__' and False:
     mongo_uri = os.getenv("MONGO_CONNECTION")
@@ -472,9 +472,9 @@ if __name__ == '__main__' and True:
     mongo_uri = os.getenv("MONGO_CONNECTION")
     mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
     mongodb = mongo_client.brokerai
-    venues_collection = mongodb["venues"]
+    venues_collection = mongodb["venues_test2"]
     start_time = time.time()  # Start the timer
-    for venue in venues:
+    for venue in validation_venues:
         ResearchVenue(venue, venues_collection)
         print(venue)
     end_time = time.time()  # End the timer
