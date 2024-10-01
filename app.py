@@ -1,14 +1,12 @@
 from flask import Flask, request, Response
 from flask_cors import CORS, cross_origin
-from webcrawler import ResearchHall
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 from webcrawler import CrawlerTools
 import threading
-
-from flask import current_app
 
 from openai import AzureOpenAI
 
@@ -22,11 +20,14 @@ import json
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 
-from flask import Flask, render_template, request, Response, send_file, jsonify
+from flask import Flask, request, Response, jsonify
 from flask_cors import CORS, cross_origin
 from bson import json_util
 
 from download_foodhalls_as_csv import get_csv
+
+from webcrawler.ResearchHall import ResearchHall
+from webcrawler.ResearchVenue import ResearchVenue
 
 load_dotenv(".env.local")
 load_dotenv()
@@ -35,6 +36,7 @@ mongo_uri = os.getenv("MONGO_CONNECTION")
 mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
 mongodb = mongo_client.brokerai
 foodhall_collection = mongodb["foodhalls_csv"]
+venue_collection = mongodb["venues_csv"]
 
 try:
     mongo_client.admin.command('ping')
@@ -147,11 +149,23 @@ def get_foodhalls():
 
     return res
 
+@app.get("/crawler/venues/new/<search_key>")
+@cross_origin()
+def search_venue(search_key, source = None):
+    def task(search_key: str, mongo_collection): 
+        hall = ResearchVenue(venue_name=search_key, mongo_collection=mongo_collection, source = source)
+        print(hall)
+        print("Done!")
+
+    threading.Thread(target=task, args=(search_key,venue_collection)).start()
+    
+    return "{ 'status': 'success' }"
+
 @app.get("/crawler/new/<search_key>")
 @cross_origin()
 def start_new_crawl(search_key, source = None):
     def task(search_key: str): 
-        hall = ResearchHall.ResearchHall(foodhall_collection, search_key.title(), source = source)
+        hall = ResearchHall(foodhall_collection, search_key.title(), source = source)
         hall.run_in_parallel()
         print(hall)
         print("Done!")

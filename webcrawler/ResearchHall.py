@@ -1,41 +1,23 @@
 import json
 import os
-import re
 import threading
 from datetime import datetime
 
-import requests
-import screeninfo
 from dotenv import load_dotenv
-from openai import OpenAI
 from openai import AzureOpenAI
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from webcrawler.CrawlerTools import (get_images, make_google_search,
+from webcrawler.CrawlerTools import (make_google_search,
                                      scrape_page_text)
-from app import get_chrome_options
-from webdriver_manager.chrome import ChromeDriverManager
-from app import create_browser
+
+from webcrawler.BrowserConfig import get_chrome_options, create_browser
 load_dotenv(".env.local")
 load_dotenv()
 
-# open_ai_key = os.getenv('GPT_API_KEY')
-# client = OpenAI(api_key=open_ai_key)
 client = AzureOpenAI(
             api_key=os.getenv("AZURE_OPENAI_API_KEY"),  
             api_version="2024-02-01",
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
         )
-
-# Use AI to click and navigate within that website, AI -> use for smart navigation
-
-# to get info: look through website text info
-# then look through html components
-# then navigate through website
-# to get info: look through website text info
-# then look through html components
-
 
 class ResearchHall:
     def __init__(self, mongo_collection, food_hall: str, source = None):
