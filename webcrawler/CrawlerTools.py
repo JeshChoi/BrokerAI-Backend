@@ -27,6 +27,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Define default wait times for Selenium
+DEFAULT_WAIT_TIME = 30
+
 def valid_url(url: str) -> bool:
     """returns whether this url is valid for search"""
     unnecessary_links = (
@@ -479,66 +482,77 @@ def traverse_all_pages(website_url: str, browser, max_page_visits=5, search_item
 
 
 def search_venue_concert_archives(venue:str):
-    """Takes venue name and returns valid search key on concert archives"""
-    driver = create_undetected_non_headless_browser()
-    link = 'https://www.concertarchives.org/venues?utf8=%E2%9C%93&search=' + venue
-    driver.get(link)
+   """Takes venue name and returns valid search key on concert archives."""
+   driver = create_undetected_non_headless_browser()
+   link = f'https://www.concertarchives.org/venues?utf8=%E2%9C%93&search={venue}'
+   driver.get(link)
 
-    res = None
-    try:
-        table = WebDriverWait(driver, 60).until(
-            EC.presence_of_element_located((By.ID, "venues-index-table"))
-        )
-        res = table.find_element(By.CSS_SELECTOR, 'tbody tr:first-child a').get_attribute('href')
-    except Exception as e:
-        print(f"Element not found: {e}")
-    finally:
-        driver.close()
-        driver.quit()
-    return res
-    
+
+   res = None
+   try:
+       WebDriverWait(driver, 60).until(
+           EC.presence_of_element_located((By.ID, "venues-index-table"))
+       )
+       res = driver.find_element(By.CSS_SELECTOR, 'tbody tr:first-child a').get_attribute('href')
+   except Exception as e:
+       print(f"Element not found: {e}")
+       driver.save_screenshot('concert_search_error.png')  # Save screenshot for debugging
+   finally:
+       driver.quit()
+   return res
+"""
+   possible
+       - the concerts per year lnik works when i give it the direct link
+       - serach_vneue_concert_archives may be the issue -> maybe we cant have 2 undetected up at the same time?
+"""
 def scrape_concerts_per_year(venue: str):
-    """Scrapes number of concerts per year from: https://www.concertarchives.org/venues/<concert-hall>"""
-    driver = create_undetected_non_headless_browser()
-    
-    venue_link = search_venue_concert_archives(venue)
-    driver.get(venue_link)
-    
-    concerts_per_year = []
+   """Scrapes number of concerts per year from: https://www.concertarchives.org/venues/<concert-hall>"""
+   venue_link = search_venue_concert_archives(venue) # 'https://www.concertarchives.org/venues/the-lodge-room-ed448f96-b539-4d93-bf00-594c6a979db6'
+   driver = create_undetected_non_headless_browser()
+   print(venue_link)
+   driver.get(venue_link)
+  
+   concerts_per_year = []
 
-    try:
-        WebDriverWait(driver, 120).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, ".table.table-condensed.table-hover.tops_table"))
-        )
-        
-        rows = driver.find_elements(By.CSS_SELECTOR, '.table.table-condensed.table-hover.tops_table tbody tr')
-        count = 0
-        for row in rows:
-            if count == 5:
-                break
-            try:
-                row_text = row.text
-                if row_text[0] != '2' and row_text[0] != '1':
-                    continue    
-                year_link = row.find_element(By.CSS_SELECTOR, 'td a.subtle-link')
-                concerts_link = row.find_element(By.CSS_SELECTOR, 'td.table-cell-no-stretch a')
-                
-                year = year_link.text.strip() + " concerts"
-                concerts = int(concerts_link.text.split()[0])
-                
-                concerts_per_year.append({year: concerts})
-                count += 1
-            except Exception as e:
-                print(f"Error processing row: {e}")
 
-    except Exception as e:
-        print(f"Element not found: {e}")
+   try:
+       WebDriverWait(driver, DEFAULT_WAIT_TIME).until(
+           EC.presence_of_element_located((By.CSS_SELECTOR, ".table.table-condensed.table-hover.tops_table"))
+       )
+       time.sleep(5)
 
-    finally:
-        driver.close()
-        driver.quit()
-    
-    return concerts_per_year, venue_link
+
+       rows = driver.find_elements(By.CSS_SELECTOR, '.table.table-condensed.table-hover.tops_table tbody tr')
+       count = 0
+       for row in rows:
+           if count == 5:
+               break
+           try:
+               row_text = row.text
+               if row_text[0] != '2' and row_text[0] != '1':
+                   continue   
+               year_link = row.find_element(By.CSS_SELECTOR, 'td a.subtle-link')
+               concerts_link = row.find_element(By.CSS_SELECTOR, 'td.table-cell-no-stretch a')
+              
+               year = year_link.text.strip() + " concerts"
+               concerts = int(concerts_link.text.split()[0])
+              
+               concerts_per_year.append({year: concerts})
+               count += 1
+           except Exception as e:
+               print(f"Error processing row: {e}")
+
+
+   except Exception as e:
+       print(f"Element not found: {e}")
+
+
+   finally:
+       driver.close()
+       driver.quit()
+  
+   return concerts_per_year, venue_link
+
 
 
 
