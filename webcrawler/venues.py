@@ -1,3 +1,12 @@
+validation_venues = [
+    "Black Sheep",
+    "Blue Gate Music Hall", 
+    "Blue Moon Bar and Grill", 
+    "Blueberry Hill's Duck Room", 
+    "Bluebird Theater", 
+    "Bottom Of The Hill"
+    ]
+
 venues = [
     "1904",
     "123 Pleasant St.",
