@@ -69,18 +69,18 @@ def pog():
     # Check database for valid research 
     return jsonify({"status": "pog"})
 
-@app.get("/download_csv")
+@app.get("/download_csv/<collection_name>")
 @cross_origin()
-def download_csv():
+def download_csv(collection_name):
     # with open("outputs/Adjacency.csv") as fp:
     #     csv = fp.read()
-    csv = get_csv()[0]
+    csv = get_csv(collection_name= collection_name)[0]
 
     return Response(
         csv,
         mimetype="text/csv",
         headers={"Content-disposition":
-                 "attachment; filename=foodhalls.csv"})
+                 "attachment; filename=" + collection_name + '.csv'})
 
 @app.get('/test_gpt')
 @cross_origin()

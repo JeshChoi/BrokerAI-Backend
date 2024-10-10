@@ -8,12 +8,12 @@ import os
 
 load_dotenv(".env.local")
 load_dotenv()
-def get_csv():
+def get_csv(collection_name: str):
     # look out for special characters 
     mongo_uri = os.getenv("MONGO_CONNECTION")
     mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
     mongodb = mongo_client.brokerai
-    col = mongodb["foodhalls_csv"]
+    col = mongodb[collection_name]
 
     try:
         mongo_client.admin.command('ping')
