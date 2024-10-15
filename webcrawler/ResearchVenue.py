@@ -241,7 +241,7 @@ class ResearchVenue:
         if conversation:
             # Process and retrieve data from the traversed pages
             prompt = f'Find out if food is offered at the music or theatre venue `{self.venue}`. If there is a mention of food served, available, or a menu is available, then this value should be true that there is food provided. Otherwise, if there is no mention of food, then this is false'
-            format_request = 'Return the response as json: {"food_offered": bool}. If unable to find accurate data, set the json value to None'
+            format_request = 'Return the response as json: {"food_offered": bool}. If food is offered, set the value to boolean value true. If unable to find accurate data, set the json value to None'
             response, conversation = aggregate_gpt_request(prompt + format_request, conversation)
             
             # Check if the response is a string and load it as JSON
@@ -472,7 +472,7 @@ if __name__ == '__main__' and True:
     mongo_uri = os.getenv("MONGO_CONNECTION")
     mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
     mongodb = mongo_client.brokerai
-    venues_collection = mongodb["venues_test2"]
+    venues_collection = mongodb["venues_csv"]
     start_time = time.time()  # Start the timer
     for venue in validation_venues:
         ResearchVenue(venue, venues_collection)

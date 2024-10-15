@@ -69,6 +69,11 @@ def pog():
     # Check database for valid research 
     return jsonify({"status": "pog"})
 
+@app.get('/v2/test')
+@cross_origin()
+def hi():
+    return jsonify({"status" : "poggers"})
+
 @app.get("/download_csv/<collection_name>")
 @cross_origin()
 def download_csv(collection_name):
@@ -159,7 +164,7 @@ def search_venue(search_key, source = None):
 
     threading.Thread(target=task, args=(search_key,venue_collection)).start()
     
-    return "{ 'status': 'success' }"
+    return jsonify({"status": "success"})
 
 @app.get("/crawler/new/<search_key>")
 @cross_origin()
@@ -172,7 +177,7 @@ def start_new_crawl(search_key, source = None):
 
     threading.Thread(target=task, args=(search_key,)).start()
     
-    return "{ 'status': 'success' }"
+    return jsonify({"status": "success"})
 
 
 def get_relevant_halls(): # fix this 
