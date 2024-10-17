@@ -453,21 +453,6 @@ class ResearchVenue:
 
 from webcrawler.venues import validation_venues # dataset with all the data
 
-if __name__ == '__main__' and False:
-    mongo_uri = os.getenv("MONGO_CONNECTION")
-    mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
-    mongodb = mongo_client.brokerai
-    venues_collection = mongodb["venues"]
-    start_time = time.time()  # Start the timer
-
-    venue = ResearchVenue('Alberta Rose Theatre', venues_collection)
-    print(venue)
-    end_time = time.time()  # End the timer
-    elapsed_time = end_time - start_time  # Calculate the elapsed time
-    print(f"Time taken for the main function: {elapsed_time:.2f} seconds")
-
-# if __name__ == '__main__':
-#     print(len(venues_2))
 if __name__ == '__main__' and True:
     mongo_uri = os.getenv("MONGO_CONNECTION")
     mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
@@ -482,3 +467,4 @@ if __name__ == '__main__' and True:
     print(f"Time taken for the main function: {elapsed_time:.2f} seconds")
     # 300-500 
     # 500 -1000 
+    # the whole list is the goal 
